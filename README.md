@@ -34,8 +34,8 @@ Upload a meeting recording and get a structured insights dashboard in seconds. B
 ## Local setup
 
 ```bash
-git clone https://github.com/yourusername/meeting-insights
-cd meeting-insights
+git clone https://github.com/jyoah02/mira-vercel.git
+cd mira-vercel
 npm install
 cp .env.example .env.local
 # fill in your API keys in .env.local
@@ -53,4 +53,4 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Demo recording
 
-A sample 2-minute mock director's call (`public/demo-meeting.mp3`) is included for demo purposes. The script is in `mock-meeting-script.md`.
+Upload any MP3 or WAV recording to test the app. A short voice memo works fine.
