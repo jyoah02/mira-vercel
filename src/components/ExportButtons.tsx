@@ -23,7 +23,7 @@ function formatAsText(insights: MeetingInsights): string {
   return lines.join('\n');
 }
 
-async function generatePDF(insights: MeetingInsights) {
+async function generatePDF(insights: MeetingInsights, mode: 'download' | 'base64' = 'download'): Promise<string | void> {
   const { default: jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
@@ -173,6 +173,9 @@ async function generatePDF(insights: MeetingInsights) {
   pdf.setTextColor(63, 63, 70);
   pdf.text('Page 1', W - margin, H - 7, { align: 'right' });
 
+  if (mode === 'base64') {
+    return pdf.output('datauristring').split(',')[1];
+  }
   pdf.save('mira-insights.pdf');
 }
 
@@ -207,6 +210,10 @@ export function ExportButtons({ insights, filename }: Props) {
     if (sendEmail && !email.trim()) return;
     setSendState('sending');
     try {
+      let pdfBase64: string | null = null;
+      if (sendEmail) {
+        pdfBase64 = (await generatePDF(insights, 'base64')) as string;
+      }
       const res = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -219,6 +226,7 @@ export function ExportButtons({ insights, filename }: Props) {
             notion: sendNotion,
             email: sendEmail ? email.trim() : null,
           },
+          pdfBase64,
         }),
       });
       if (!res.ok) throw new Error('Bad response');
@@ -242,7 +250,7 @@ export function ExportButtons({ insights, filename }: Props) {
     // Small delay so the button state is visible before the browser blocks on PDF generation
     await new Promise(r => setTimeout(r, 300));
     try {
-      await generatePDF(insights);
+      await generatePDF(insights, 'download');
       setPdfState('saved');
       setTimeout(() => setPdfState('idle'), 3000);
     } catch {
