@@ -293,7 +293,7 @@ export function ExportButtons({ insights, filename }: Props) {
           Send
           {!showWebhook && (
             <span className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1 text-xs bg-zinc-900 text-white border border-zinc-700 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg z-50">
-              Send to n8n webhook
+              Send to productivity apps via n8n
             </span>
           )}
         </button>
@@ -301,13 +301,13 @@ export function ExportButtons({ insights, filename }: Props) {
         {showWebhook && (
           <div className="absolute top-full right-0 mt-2 w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-4 z-50">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-semibold text-white">Send to n8n</p>
+              <p className="text-sm font-semibold text-white">Productivity Apps Integration</p>
               <button onClick={() => setShowWebhook(false)} className="text-zinc-500 hover:text-white transition-colors">
                 <X className="w-4 h-4" />
               </button>
             </div>
             <p className="text-xs text-zinc-500 mb-3 leading-relaxed">
-              Paste your n8n webhook URL to send insights to Notion, Slack, Google Sheets, and more.
+              Paste your n8n webhook URL to push insights into Notion, Slack, Google Sheets, and more — powered by your n8n workflow.
             </p>
             <input
               type="url"
