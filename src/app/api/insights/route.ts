@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -38,7 +40,27 @@ const MOCK_INSIGHTS = {
   tone: "concerned but constructive",
 };
 
+const MAX_TRANSCRIPT_LENGTH = 50_000;
+
+const InsightsSchema = z.object({
+  summary: z.string(),
+  decisions: z.array(z.string()),
+  actionItems: z.array(z.object({ task: z.string(), owner: z.string().nullable() })),
+  openQuestions: z.array(z.string()),
+  sentiment: z.enum(['positive', 'neutral', 'negative', 'mixed']),
+  tone: z.string(),
+});
+
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown';
+  const { allowed, retryAfter } = checkRateLimit(ip);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please wait before trying again.' },
+      { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+    );
+  }
+
   if (process.env.MOCK_MODE === 'true') {
     await new Promise(r => setTimeout(r, 2000));
     return NextResponse.json({ insights: MOCK_INSIGHTS });
@@ -49,6 +71,10 @@ export async function POST(req: NextRequest) {
 
     if (!transcript || typeof transcript !== "string") {
       return NextResponse.json({ error: "No transcript provided" }, { status: 400 });
+    }
+
+    if (transcript.length > MAX_TRANSCRIPT_LENGTH) {
+      return NextResponse.json({ error: "Transcript too long. Maximum is 50,000 characters." }, { status: 400 });
     }
 
     const message = await anthropic.messages.create({
@@ -64,7 +90,7 @@ export async function POST(req: NextRequest) {
     });
 
     const raw = message.content[0].type === "text" ? message.content[0].text : "";
-    const insights = JSON.parse(raw);
+    const insights = InsightsSchema.parse(JSON.parse(raw));
 
     return NextResponse.json({ insights });
   } catch (err) {
