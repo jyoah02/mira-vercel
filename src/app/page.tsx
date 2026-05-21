@@ -8,9 +8,21 @@ import { ExportButtons } from '@/components/ExportButtons';
 import { LoadingSteps } from '@/components/LoadingSteps';
 import { Button } from '@/components/ui/button';
 import { MeetingInsights, ProcessingStep } from '@/types/insights';
-import { Mic, Sparkles, AlertCircle, RotateCcw, Zap, Brain, Target, ArrowRight } from 'lucide-react';
+import { Mic, Sparkles, AlertCircle, RotateCcw, Zap, Brain, Target, ArrowRight, ShieldCheck } from 'lucide-react';
 
 type View = 'landing' | 'upload' | 'results';
+
+function friendlyError(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes('too large') || m.includes('413')) return "Your file is too large. Please use a recording under 25 MB.";
+  if (m.includes('unsupported') || m.includes('415') || m.includes('file type')) return "We couldn't read that file type. Try MP3, WAV, or M4A.";
+  if (m.includes('too many') || m.includes('429') || m.includes('rate')) return "You've made too many requests. Please wait a minute and try again.";
+  if (m.includes('transcript') && m.includes('long')) return "Your recording produced a very long transcript. Try a shorter clip (under 2 hours).";
+  if (m.includes('transcri')) return "We had trouble reading your audio. Make sure it's a clear recording and try again.";
+  if (m.includes('analy') || m.includes('insight')) return "We couldn't analyze the transcript. Please try again in a moment.";
+  if (m.includes('network') || m.includes('fetch')) return "Connection issue. Check your internet and try again.";
+  return "Something went wrong. Please try again.";
+}
 
 const LANGUAGE_MAP: Record<string, { flag: string; name: string }> = {
   english:    { flag: '🇺🇸', name: 'English' },
@@ -81,7 +93,8 @@ export default function Home() {
       setStep('done');
       setView('results');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const raw = err instanceof Error ? err.message : 'Something went wrong';
+      setError(friendlyError(raw));
       setStep('error');
     }
   };
@@ -261,6 +274,11 @@ export default function Home() {
                   <Sparkles className="w-5 h-5" />
                   {isProcessing ? 'Processing...' : 'Generate insights'}
                 </button>
+
+                <p className="flex items-center justify-center gap-1.5 text-xs text-zinc-600">
+                  <ShieldCheck className="w-3.5 h-3.5 text-zinc-700" />
+                  Your audio is processed in real-time and never stored on our servers.
+                </p>
               </div>
             </div>
           </>
