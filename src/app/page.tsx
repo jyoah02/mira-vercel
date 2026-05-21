@@ -212,7 +212,7 @@ export default function Home() {
 
           {view === 'results' && insights && (
             <div className="flex items-center gap-2">
-              <ExportButtons insights={insights} />
+              <ExportButtons insights={insights} filename={file?.name} />
               <Button
                 variant="ghost"
                 size="sm"
@@ -302,7 +302,7 @@ export default function Home() {
                 <span className="text-sm text-zinc-500">{file?.name}</span>
               </div>
             </div>
-            <InsightsDashboard insights={insights} />
+            <InsightsDashboard insights={insights} onChange={setInsights} />
             {transcript && <TranscriptViewer transcript={transcript} />}
           </div>
         )}

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { Copy, Download, Check, FileCheck } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Copy, Download, Check, FileCheck, Send, X, Loader2 } from 'lucide-react';
 import { MeetingInsights } from '@/types/insights';
 
 interface Props {
   insights: MeetingInsights;
+  filename?: string;
 }
 
 function formatAsText(insights: MeetingInsights): string {
@@ -176,10 +177,56 @@ async function generatePDF(insights: MeetingInsights) {
 }
 
 type PDFState = 'idle' | 'generating' | 'saved';
+type SendState = 'idle' | 'sending' | 'sent' | 'error';
 
-export function ExportButtons({ insights }: Props) {
+const N8N_KEY = 'mira_n8n_webhook_url';
+
+export function ExportButtons({ insights, filename }: Props) {
   const [copied, setCopied] = useState(false);
   const [pdfState, setPdfState] = useState<PDFState>('idle');
+  const [showWebhook, setShowWebhook] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [sendState, setSendState] = useState<SendState>('idle');
+  const webhookRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setWebhookUrl(localStorage.getItem(N8N_KEY) ?? '');
+  }, []);
+
+  useEffect(() => {
+    if (!showWebhook) return;
+    const handler = (e: MouseEvent) => {
+      if (webhookRef.current && !webhookRef.current.contains(e.target as Node)) {
+        setShowWebhook(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showWebhook]);
+
+  const handleSend = async () => {
+    if (!webhookUrl.trim() || sendState === 'sending') return;
+    localStorage.setItem(N8N_KEY, webhookUrl.trim());
+    setSendState('sending');
+    try {
+      const res = await fetch(webhookUrl.trim(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          insights,
+          filename: filename ?? null,
+          generatedAt: new Date().toISOString(),
+          source: 'MIRA',
+        }),
+      });
+      if (!res.ok) throw new Error('Bad response');
+      setSendState('sent');
+      setTimeout(() => { setSendState('idle'); setShowWebhook(false); }, 2500);
+    } catch {
+      setSendState('error');
+      setTimeout(() => setSendState('idle'), 3000);
+    }
+  };
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(formatAsText(insights));
@@ -204,7 +251,7 @@ export function ExportButtons({ insights }: Props) {
   const btnClass = "relative group flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-all h-9";
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 relative">
       <button onClick={handleCopy} className={`${btnClass} border-zinc-700 bg-zinc-800/60 text-zinc-300 hover:bg-zinc-700 hover:text-white`}>
         {copied ? <Check className="w-3.5 h-3.5 text-violet-400" /> : <Copy className="w-3.5 h-3.5" />}
         {copied ? 'Copied!' : 'Copy'}
@@ -236,6 +283,55 @@ export function ExportButtons({ insights }: Props) {
           </span>
         )}
       </button>
+      {/* Send to n8n */}
+      <div className="relative" ref={webhookRef}>
+        <button
+          onClick={() => setShowWebhook(v => !v)}
+          className={`${btnClass} ${showWebhook ? 'border-violet-500/40 bg-violet-500/10 text-violet-400' : 'border-zinc-700 bg-zinc-800/60 text-zinc-300 hover:bg-zinc-700 hover:text-white'}`}
+        >
+          <Send className="w-3.5 h-3.5" />
+          Send
+          {!showWebhook && (
+            <span className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1 text-xs bg-zinc-900 text-white border border-zinc-700 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg z-50">
+              Send to n8n webhook
+            </span>
+          )}
+        </button>
+
+        {showWebhook && (
+          <div className="absolute top-full right-0 mt-2 w-80 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-4 z-50">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-white">Send to n8n</p>
+              <button onClick={() => setShowWebhook(false)} className="text-zinc-500 hover:text-white transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-zinc-500 mb-3 leading-relaxed">
+              Paste your n8n webhook URL to send insights to Notion, Slack, Google Sheets, and more.
+            </p>
+            <input
+              type="url"
+              placeholder="https://your-n8n-instance/webhook/..."
+              value={webhookUrl}
+              onChange={e => setWebhookUrl(e.target.value)}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30 mb-3"
+              onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={!webhookUrl.trim() || sendState === 'sending'}
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed
+                ${sendState === 'sent' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                  sendState === 'error' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                  'bg-violet-600 hover:bg-violet-500 text-white'}`}
+            >
+              {sendState === 'sending' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {sendState === 'sent' && <Check className="w-3.5 h-3.5" />}
+              {sendState === 'sending' ? 'Sending...' : sendState === 'sent' ? 'Sent!' : sendState === 'error' ? 'Send failed — check URL' : 'Send insights'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
