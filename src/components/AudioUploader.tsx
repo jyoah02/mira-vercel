@@ -63,6 +63,11 @@ export function AudioUploader({ onFileSelect, disabled }: Props) {
         <div>
           <p className="text-base font-medium text-white mb-1">Drop your audio file here</p>
           <p className="text-sm text-zinc-500">MP3, WAV, M4A up to 25MB</p>
+          <div className="flex flex-wrap justify-center gap-1.5 mt-1">
+            {['EN','ES','FR','DE','PT','ZH','JA','KO','IT','AR'].map(lang => (
+              <span key={lang} className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-800 border border-zinc-700 text-zinc-500 tracking-wide">{lang}</span>
+            ))}
+          </div>
         </div>
         <Button
           variant="outline"

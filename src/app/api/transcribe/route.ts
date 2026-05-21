@@ -74,10 +74,13 @@ export async function POST(req: NextRequest) {
     const transcription = await groq.audio.transcriptions.create({
       file,
       model: "whisper-large-v3",
-      response_format: "text",
+      response_format: "verbose_json",
     });
 
-    return NextResponse.json({ transcript: transcription });
+    return NextResponse.json({
+      transcript: transcription.text,
+      language: (transcription as unknown as { language?: string }).language ?? null,
+    });
   } catch (err) {
     console.error("Transcription error:", err);
     return NextResponse.json({ error: "Transcription failed" }, { status: 500 });

@@ -7,13 +7,15 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const SYSTEM_PROMPT = `You are a meeting analyst. Given a meeting transcript, extract structured insights and return them as valid JSON only — no markdown, no explanation, just the JSON object.
 
+Respond in the same language as the transcript. If the transcript is in Spanish, all values in the JSON must be in Spanish. If it is in French, respond in French. Always match the language of the input.
+
 Return this exact shape:
 {
   "summary": "string (3-5 sentences summarizing the meeting)",
   "decisions": ["string", ...],
   "actionItems": [{ "task": "string", "owner": "string or null" }, ...],
   "openQuestions": ["string", ...],
-  "sentiment": "positive | neutral | negative",
+  "sentiment": "positive | neutral | negative | mixed",
   "tone": "string (e.g. collaborative, tense, focused, casual)"
 }`;
 

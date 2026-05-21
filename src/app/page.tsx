@@ -12,6 +12,21 @@ import { Mic, Sparkles, AlertCircle, RotateCcw, Zap, Brain, Target, ArrowRight }
 
 type View = 'landing' | 'upload' | 'results';
 
+const LANGUAGE_MAP: Record<string, { flag: string; name: string }> = {
+  english:    { flag: '🇺🇸', name: 'English' },
+  spanish:    { flag: '🇪🇸', name: 'Spanish' },
+  french:     { flag: '🇫🇷', name: 'French' },
+  german:     { flag: '🇩🇪', name: 'German' },
+  portuguese: { flag: '🇧🇷', name: 'Portuguese' },
+  chinese:    { flag: '🇨🇳', name: 'Chinese' },
+  japanese:   { flag: '🇯🇵', name: 'Japanese' },
+  korean:     { flag: '🇰🇷', name: 'Korean' },
+  italian:    { flag: '🇮🇹', name: 'Italian' },
+  arabic:     { flag: '🇸🇦', name: 'Arabic' },
+  dutch:      { flag: '🇳🇱', name: 'Dutch' },
+  russian:    { flag: '🇷🇺', name: 'Russian' },
+};
+
 export default function Home() {
   const [view, setView] = useState<View>('landing');
   const [landingExiting, setLandingExiting] = useState(false);
@@ -19,6 +34,7 @@ export default function Home() {
   const [step, setStep] = useState<ProcessingStep>('idle');
   const [transcript, setTranscript] = useState('');
   const [insights, setInsights] = useState<MeetingInsights | null>(null);
+  const [detectedLanguage, setDetectedLanguage] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const handleFileSelect = (selectedFile: File) => {
@@ -46,8 +62,9 @@ export default function Home() {
         const err = await tRes.json();
         throw new Error(err.error || 'Transcription failed');
       }
-      const { transcript: rawTranscript } = await tRes.json();
+      const { transcript: rawTranscript, language } = await tRes.json();
       setTranscript(rawTranscript);
+      setDetectedLanguage(language ?? null);
 
       setStep('analyzing');
       const aRes = await fetch('/api/insights', {
@@ -74,6 +91,7 @@ export default function Home() {
     setStep('idle');
     setTranscript('');
     setInsights(null);
+    setDetectedLanguage(null);
     setError('');
     setView('upload');
   };
@@ -253,7 +271,18 @@ export default function Home() {
           <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
               <h2 className="text-xl font-bold text-white">Extracted Insights</h2>
-              <span className="text-sm text-zinc-500">{file?.name}</span>
+              <div className="flex items-center gap-3">
+                {detectedLanguage && (() => {
+                  const lang = LANGUAGE_MAP[detectedLanguage.toLowerCase()];
+                  return (
+                    <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-800 border border-zinc-700 text-zinc-300">
+                      <span>{lang?.flag ?? '🌐'}</span>
+                      <span>{lang?.name ?? detectedLanguage.charAt(0).toUpperCase() + detectedLanguage.slice(1)}</span>
+                    </span>
+                  );
+                })()}
+                <span className="text-sm text-zinc-500">{file?.name}</span>
+              </div>
             </div>
             <InsightsDashboard insights={insights} />
             {transcript && <TranscriptViewer transcript={transcript} />}
