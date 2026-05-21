@@ -8,7 +8,7 @@ interface Props {
 }
 
 const steps = [
-  { key: 'uploading', label: 'Uploading audio', desc: 'Securely transferring your file to our servers' },
+  { key: 'uploading', label: 'Uploading audio', desc: 'Securely sending your file for processing — never stored' },
   { key: 'transcribing', label: 'Transcribing with Whisper', desc: "Converting speech to text using OpenAI's Whisper model" },
   { key: 'analyzing', label: 'Analyzing with Claude', desc: 'Extracting key insights, decisions, action items, and sentiment' },
 ];
