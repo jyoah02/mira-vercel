@@ -2,7 +2,7 @@
 
 Upload a meeting recording and get a structured insights dashboard in seconds. Built with Next.js, Groq Whisper, and Claude.
 
-**Live demo:** [mira-insights.vercel.app](https://mira-insights.vercel.app) *(deploy link goes here)*
+**Live demo:** [mira-vercel.vercel.app](https://mira-vercel.vercel.app)
 
 ---
 

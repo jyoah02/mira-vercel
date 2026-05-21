@@ -15,7 +15,35 @@ Return this exact shape:
   "tone": "string (e.g. collaborative, tense, focused, casual)"
 }`;
 
+const MOCK_INSIGHTS = {
+  summary: "The team reviewed Q2 roadmap priorities and identified a conflict between the dashboard redesign and the API v3 launch. Given current resource constraints, decisions were made to delay the API launch and bring in additional engineering support to keep both tracks moving.",
+  decisions: [
+    "Hire two additional frontend engineers by end of May",
+    "Push API v3 launch from May 15 to June 28",
+    "Allocate $50k additional budget for contractor support",
+    "Dashboard redesign becomes the top priority for Q2",
+  ],
+  actionItems: [
+    { task: "Draft job descriptions and post on LinkedIn", owner: "Sarah" },
+    { task: "Update roadmap timeline and communicate to stakeholders", owner: "Mike" },
+    { task: "Schedule design review session for dashboard mockups", owner: "Alex" },
+    { task: "Research contractor agencies for short-term support", owner: "Jordan" },
+  ],
+  openQuestions: [
+    "Do we have budget approval for the additional headcount?",
+    "What happens to the mobile app timeline if we delay API v3?",
+    "Should we consider outsourcing the dashboard implementation?",
+  ],
+  sentiment: "mixed",
+  tone: "concerned but constructive",
+};
+
 export async function POST(req: NextRequest) {
+  if (process.env.MOCK_MODE === 'true') {
+    await new Promise(r => setTimeout(r, 2000));
+    return NextResponse.json({ insights: MOCK_INSIGHTS });
+  }
+
   try {
     const { transcript } = await req.json();
 

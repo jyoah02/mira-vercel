@@ -1,287 +1,266 @@
-"use client";
+'use client';
 
-import { useState, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
-import { exportToPDF } from "@/lib/export";
+import { useState } from 'react';
+import { AudioUploader } from '@/components/AudioUploader';
+import { TranscriptViewer } from '@/components/TranscriptViewer';
+import { InsightsDashboard } from '@/components/InsightsDashboard';
+import { ExportButtons } from '@/components/ExportButtons';
+import { LoadingSteps } from '@/components/LoadingSteps';
+import { Button } from '@/components/ui/button';
+import { MeetingInsights, ProcessingStep } from '@/types/insights';
+import { Mic, Sparkles, AlertCircle, RotateCcw, Zap, Brain, Target, ArrowRight } from 'lucide-react';
 
-interface ActionItem {
-  task: string;
-  owner: string | null;
-}
-
-interface Insights {
-  summary: string;
-  decisions: string[];
-  actionItems: ActionItem[];
-  openQuestions: string[];
-  sentiment: "positive" | "neutral" | "negative";
-  tone: string;
-}
-
-type Stage = "idle" | "transcribing" | "analyzing" | "done" | "error";
-
-const SENTIMENT_COLOR: Record<string, string> = {
-  positive: "bg-green-100 text-green-800",
-  neutral: "bg-gray-100 text-gray-700",
-  negative: "bg-red-100 text-red-800",
-};
+type View = 'landing' | 'upload' | 'results';
 
 export default function Home() {
-  const [stage, setStage] = useState<Stage>("idle");
-  const [progress, setProgress] = useState(0);
-  const [transcript, setTranscript] = useState<string>("");
-  const [insights, setInsights] = useState<Insights | null>(null);
-  const [error, setError] = useState<string>("");
-  const [fileName, setFileName] = useState<string>("");
-  const fileRef = useRef<HTMLInputElement>(null);
-  const dashboardRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<View>('landing');
+  const [landingExiting, setLandingExiting] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [step, setStep] = useState<ProcessingStep>('idle');
+  const [transcript, setTranscript] = useState('');
+  const [insights, setInsights] = useState<MeetingInsights | null>(null);
+  const [error, setError] = useState('');
 
-  async function handleFile(file: File) {
-    setFileName(file.name);
-    setStage("transcribing");
-    setProgress(20);
-    setError("");
+  const handleFileSelect = (selectedFile: File) => {
+    setFile(selectedFile);
+    setInsights(null);
+    setTranscript('');
+    setError('');
+    setStep('idle');
+  };
+
+  const handleProcess = async () => {
+    if (!file) return;
+    setError('');
     setInsights(null);
 
     try {
-      const fd = new FormData();
-      fd.append("audio", file);
-      const tRes = await fetch("/api/transcribe", { method: "POST", body: fd });
-      if (!tRes.ok) throw new Error("Transcription failed");
-      const { transcript: text } = await tRes.json();
-      setTranscript(text);
-      setProgress(55);
+      setStep('uploading');
+      await new Promise(r => setTimeout(r, 400));
+      const formData = new FormData();
+      formData.append('audio', file);
 
-      setStage("analyzing");
-      const iRes = await fetch("/api/insights", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ transcript: text }),
+      setStep('transcribing');
+      const tRes = await fetch('/api/transcribe', { method: 'POST', body: formData });
+      if (!tRes.ok) {
+        const err = await tRes.json();
+        throw new Error(err.error || 'Transcription failed');
+      }
+      const { transcript: rawTranscript } = await tRes.json();
+      setTranscript(rawTranscript);
+
+      setStep('analyzing');
+      const aRes = await fetch('/api/insights', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: rawTranscript }),
       });
-      if (!iRes.ok) throw new Error("Insights extraction failed");
-      const { insights: data } = await iRes.json();
-      setInsights(data);
-      setProgress(100);
-      setStage("done");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-      setStage("error");
+      if (!aRes.ok) {
+        const err = await aRes.json();
+        throw new Error(err.error || 'Analysis failed');
+      }
+      const { insights: extracted } = await aRes.json();
+      setInsights(extracted);
+      setStep('done');
+      setView('results');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setStep('error');
     }
-  }
+  };
 
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  }
+  const reset = () => {
+    setFile(null);
+    setStep('idle');
+    setTranscript('');
+    setInsights(null);
+    setError('');
+    setView('upload');
+  };
 
-  function copyToClipboard() {
-    if (!insights) return;
-    const text = [
-      `MEETING SUMMARY\n${insights.summary}`,
-      `\nKEY DECISIONS\n${insights.decisions.map((d) => `• ${d}`).join("\n")}`,
-      `\nACTION ITEMS\n${insights.actionItems.map((a) => `• ${a.task}${a.owner ? ` (${a.owner})` : ""}`).join("\n")}`,
-      `\nOPEN QUESTIONS\n${insights.openQuestions.map((q) => `• ${q}`).join("\n")}`,
-      `\nSENTIMENT: ${insights.sentiment} | TONE: ${insights.tone}`,
-    ].join("\n");
-    navigator.clipboard.writeText(text);
+  const isProcessing = ['uploading', 'transcribing', 'analyzing'].includes(step);
+
+  // Landing Page
+  if (view === 'landing') {
+    return (
+      <div className={`min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-8 relative overflow-hidden ${landingExiting ? 'animate-fade-out-landing' : ''}`}>
+        {/* Radial glow */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle at 50% 50%, rgba(124,58,237,0.15) 0%, transparent 60%)',
+            animation: 'pulse-glow 8s ease-in-out infinite',
+          }}
+        />
+
+        <div className="relative z-10 text-center max-w-2xl mx-auto">
+          {/* Logo */}
+          <div
+            className="inline-flex items-center justify-center w-24 h-24 rounded-2xl mb-8"
+            style={{
+              background: 'linear-gradient(135deg, #7c3aed, #8b5cf6)',
+              boxShadow: '0 20px 40px rgba(124,58,237,0.35)',
+              animation: 'float 3s ease-in-out infinite',
+            }}
+          >
+            <Mic className="w-10 h-10 text-white" />
+          </div>
+
+          <h1
+            className="text-6xl font-extrabold tracking-tight mb-4"
+            style={{
+              background: 'linear-gradient(135deg, white, #c4b5fd)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            MIRA
+          </h1>
+
+          <p className="text-xl text-zinc-400 mb-12 leading-relaxed">
+            Transform your meeting recordings into structured insights with AI-powered transcription and analysis.
+          </p>
+
+          {/* Feature cards */}
+          <div className="grid grid-cols-3 gap-5 mb-12">
+            {[
+              { icon: <Zap className="w-6 h-6 text-violet-400" />, title: 'Fast Transcription', desc: 'Powered by Whisper for accurate, lightning-fast audio-to-text' },
+              { icon: <Brain className="w-6 h-6 text-violet-400" />, title: 'Smart Analysis', desc: 'Claude extracts decisions, action items, and sentiment automatically' },
+              { icon: <Target className="w-6 h-6 text-violet-400" />, title: 'Actionable Reports', desc: 'Get structured insights you can share and act on immediately' },
+            ].map((f, i) => (
+              <div key={i} className="p-6 rounded-xl border border-zinc-800 bg-zinc-900/50 backdrop-blur-sm text-left">
+                <div className="mb-3">{f.icon}</div>
+                <h3 className="text-sm font-semibold text-white mb-2">{f.title}</h3>
+                <p className="text-sm text-zinc-500 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={() => {
+            setLandingExiting(true);
+            setTimeout(() => setView('upload'), 500);
+          }}
+            className="inline-flex items-center gap-2 px-8 py-4 text-base font-semibold text-white rounded-xl cursor-pointer transition-all duration-200 hover:-translate-y-0.5"
+            style={{
+              background: '#7c3aed',
+              boxShadow: '0 8px 20px rgba(124,58,237,0.35)',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.background = '#8b5cf6';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 24px rgba(124,58,237,0.45)';
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.background = '#7c3aed';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 20px rgba(124,58,237,0.35)';
+            }}
+          >
+            Get Started
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <header className="border-b bg-white px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Meeting Insights</h1>
-          <p className="text-sm text-gray-500">AI-powered transcription and analysis</p>
-        </div>
-        {insights && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={copyToClipboard}>
-              Copy to Clipboard
-            </Button>
-            <Button size="sm" onClick={() => exportToPDF(dashboardRef)}>
-              Download PDF
-            </Button>
-          </div>
-        )}
-      </header>
-
-      <div className="max-w-5xl mx-auto px-6 py-10 space-y-8">
-        {(stage === "idle" || stage === "error") && (
-          <div
-            className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer hover:border-gray-400 hover:bg-white transition-colors"
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            onClick={() => fileRef.current?.click()}
-          >
-            <div className="text-4xl mb-3">🎙️</div>
-            <p className="text-lg font-medium text-gray-700">Drop your meeting audio here</p>
-            <p className="text-sm text-gray-400 mt-1">MP3 or WAV — click to browse</p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".mp3,.wav,audio/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFile(f);
-              }}
-            />
-            {stage === "error" && (
-              <p className="mt-4 text-sm text-red-600 font-medium">{error}</p>
-            )}
-          </div>
-        )}
-
-        {(stage === "transcribing" || stage === "analyzing") && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600 font-medium">
-                {stage === "transcribing" ? "Transcribing audio..." : "Extracting insights..."}
-              </span>
-              <span className="text-gray-400">{fileName}</span>
+    <div className="min-h-screen bg-zinc-950 text-white animate-fade-in-app">
+      {/* Header */}
+      <header className="border-b border-zinc-800 sticky top-0 z-50" style={{ background: 'rgba(9,9,11,0.85)', backdropFilter: 'blur(12px)' }}>
+        <div className="w-full px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
+              <Mic className="w-5 h-5 text-violet-400" />
             </div>
-            <Progress value={progress} className="h-2" />
-            <p className="text-xs text-gray-400">
-              {stage === "transcribing"
-                ? "Sending to Groq Whisper — this takes a few seconds"
-                : "Claude is reading the transcript"}
-            </p>
+            <div>
+              <h1 className="text-base font-semibold text-white leading-tight">MIRA</h1>
+              <p className="text-xs text-zinc-500 leading-none mt-0.5">Meeting Insights & Report Aggregator</p>
+            </div>
           </div>
-        )}
 
-        {stage === "done" && insights && (
-          <div ref={dashboardRef} className="space-y-6">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h2 className="text-lg font-semibold text-gray-800">Analysis complete</h2>
-              <span className="text-sm text-gray-400">{fileName}</span>
-              <span
-                className={`ml-auto text-xs font-medium px-2.5 py-1 rounded-full capitalize ${SENTIMENT_COLOR[insights.sentiment]}`}
-              >
-                {insights.sentiment} sentiment
-              </span>
-              <Badge variant="secondary" className="capitalize">
-                {insights.tone}
-              </Badge>
-            </div>
-
-            <Separator />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Card className="md:col-span-2">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                    Meeting Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-800 leading-relaxed">{insights.summary}</p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                    Key Decisions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {insights.decisions.length === 0 ? (
-                      <li className="text-gray-400 text-sm italic">None recorded</li>
-                    ) : (
-                      insights.decisions.map((d, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-gray-700">
-                          <span className="text-blue-500 mt-0.5">✓</span>
-                          {d}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                    Action Items
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    {insights.actionItems.length === 0 ? (
-                      <li className="text-gray-400 text-sm italic">None recorded</li>
-                    ) : (
-                      insights.actionItems.map((a, i) => (
-                        <li key={i} className="text-sm">
-                          <span className="text-gray-700">{a.task}</span>
-                          {a.owner && (
-                            <Badge variant="outline" className="ml-2 text-xs">
-                              {a.owner}
-                            </Badge>
-                          )}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card className="md:col-span-2">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                    Open Questions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {insights.openQuestions.length === 0 ? (
-                      <li className="text-gray-400 text-sm italic">None recorded</li>
-                    ) : (
-                      insights.openQuestions.map((q, i) => (
-                        <li key={i} className="flex gap-2 text-sm text-gray-700">
-                          <span className="text-amber-500">?</span>
-                          {q}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <details className="md:col-span-2">
-                <summary className="cursor-pointer text-sm text-gray-400 hover:text-gray-600">
-                  View raw transcript
-                </summary>
-                <div className="mt-3 p-4 bg-gray-50 rounded-lg border text-sm text-gray-600 whitespace-pre-wrap leading-relaxed max-h-64 overflow-y-auto">
-                  {transcript}
-                </div>
-              </details>
-            </div>
-
-            <div className="pt-2">
+          {view === 'results' && insights && (
+            <div className="flex items-center gap-2">
+              <ExportButtons insights={insights} />
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-gray-400"
-                onClick={() => {
-                  setStage("idle");
-                  setInsights(null);
-                  setTranscript("");
-                  setFileName("");
-                  if (fileRef.current) fileRef.current.value = "";
-                }}
+                onClick={reset}
+                className="relative group text-zinc-400 hover:text-white hover:bg-zinc-800 h-9 px-3 text-sm"
               >
-                ← Analyze another recording
+                <RotateCcw className="w-4 h-4 mr-1.5" />
+                New
+                <span className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1 text-xs bg-zinc-900 text-white border border-zinc-700 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg z-50">
+                  Start new analysis
+                </span>
               </Button>
             </div>
+          )}
+        </div>
+      </header>
+
+      <main className={`max-w-5xl mx-auto px-6 relative z-10 ${view === 'upload' ? 'flex flex-col items-center justify-center min-h-[calc(100vh-73px)] py-8' : 'py-12'}`}>
+
+        {/* Upload view */}
+        {view === 'upload' && (
+          <>
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-bold text-white mb-4 tracking-tight leading-tight">
+                Turn meetings into
+                <span className="text-violet-400"> actionable insights</span>
+              </h2>
+              <p className="text-base text-zinc-500 max-w-lg mx-auto leading-relaxed">
+                Upload a recording. Get a transcript, key decisions, action items, and sentiment — powered by Whisper and Claude.
+              </p>
+            </div>
+
+            <div className="w-full max-w-2xl rounded-2xl border border-zinc-800 p-7 space-y-5 relative overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, rgba(24,24,27,0.6), rgba(18,18,21,0.8))' }}
+            >
+              <div className="absolute inset-0 pointer-events-none"
+                style={{ background: 'radial-gradient(circle at 20% 50%, rgba(124,58,237,0.07) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(59,130,246,0.05) 0%, transparent 50%)' }}
+              />
+              <div className="relative z-10 space-y-5">
+                <AudioUploader onFileSelect={handleFileSelect} disabled={isProcessing} />
+
+                {isProcessing && <LoadingSteps currentStep={step} />}
+
+                {error && (
+                  <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 p-4 rounded-xl">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleProcess}
+                  disabled={!file || isProcessing}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 text-base font-semibold text-white rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: '#7c3aed' }}
+                  onMouseEnter={e => { if (!isProcessing && file) (e.currentTarget as HTMLElement).style.background = '#8b5cf6'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#7c3aed'; }}
+                >
+                  <Sparkles className="w-5 h-5" />
+                  {isProcessing ? 'Processing...' : 'Generate insights'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Results view */}
+        {view === 'results' && insights && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
+              <h2 className="text-xl font-bold text-white">Extracted Insights</h2>
+              <span className="text-sm text-zinc-500">{file?.name}</span>
+            </div>
+            <InsightsDashboard insights={insights} />
+            {transcript && <TranscriptViewer transcript={transcript} />}
           </div>
         )}
-      </div>
-    </main>
+
+      </main>
+    </div>
   );
 }
