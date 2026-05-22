@@ -22,6 +22,18 @@ export const metadata: Metadata = {
       { url: '/favicon.svg', type: 'image/svg+xml' },
     ],
   },
+  openGraph: {
+    title: "MIRA — Meeting Intelligence & Report Aggregator",
+    description: "Upload a meeting recording and get instant transcription, key decisions, action items, and sentiment analysis powered by Whisper and Claude AI.",
+    images: [{ url: '/og-image.png', width: 1200, height: 630 }],
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: "MIRA — Meeting Intelligence & Report Aggregator",
+    description: "Upload a meeting recording and get instant transcription, key decisions, action items, and sentiment analysis powered by Whisper and Claude AI.",
+    images: ['/og-image.png'],
+  },
 };
 
 export default function RootLayout({
