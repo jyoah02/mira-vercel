@@ -15,7 +15,7 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "MIRA — Meeting Insights & Report Aggregator",
+  title: "MIRA — Meeting Intelligence & Report Aggregator",
   description: "Upload a meeting recording and get instant transcription, key decisions, action items, and sentiment analysis powered by Whisper and Claude AI.",
   icons: {
     icon: [
