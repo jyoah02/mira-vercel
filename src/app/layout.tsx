@@ -25,14 +25,14 @@ export const metadata: Metadata = {
   openGraph: {
     title: "MIRA — Meeting Intelligence & Report Aggregator",
     description: "Upload a meeting recording and get instant transcription, key decisions, action items, and sentiment analysis powered by Whisper and Claude AI.",
-    images: [{ url: '/mira-og-image.png', width: 1200, height: 630 }],
+    images: [{ url: 'https://mira-p1c.vercel.app/mira-og-image.png', width: 1200, height: 630 }],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: "MIRA — Meeting Intelligence & Report Aggregator",
     description: "Upload a meeting recording and get instant transcription, key decisions, action items, and sentiment analysis powered by Whisper and Claude AI.",
-    images: ['/mira-og-image.png'],
+    images: ['https://mira-p1c.vercel.app/mira-og-image.png'],
   },
 };
 
