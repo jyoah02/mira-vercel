@@ -317,13 +317,16 @@ export function ExportButtons({ insights, filename }: Props) {
               </button>
             </div>
 
-            <div className="space-y-3 mb-4">
+            {/* Unavailable notice */}
+            <div className="mb-4 flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs leading-snug">
+              <span className="mt-0.5 flex-shrink-0">⚠</span>
+              <span>n8n integrations are locally hosted and not available in production.</span>
+            </div>
+
+            <div className="space-y-3 mb-4 opacity-40 pointer-events-none select-none">
               {/* Notion option */}
-              <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${sendNotion ? 'border-violet-500/40 bg-violet-500/10' : 'border-zinc-700 bg-zinc-800/30 hover:border-zinc-600'}`}>
-                <input type="checkbox" checked={sendNotion} onChange={e => setSendNotion(e.target.checked)} className="hidden" />
-                <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors ${sendNotion ? 'bg-violet-500' : 'border border-zinc-600 bg-transparent'}`}>
-                  {sendNotion && <Check className="w-3 h-3 text-white" />}
-                </div>
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-zinc-700 bg-zinc-800/30 cursor-not-allowed">
+                <div className="w-4 h-4 rounded border border-zinc-600 bg-transparent flex-shrink-0" />
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-white px-1.5 py-0.5 rounded bg-zinc-700 text-xs">N</span>
                   <span className="text-sm text-zinc-200">Notion</span>
@@ -331,41 +334,20 @@ export function ExportButtons({ insights, filename }: Props) {
               </label>
 
               {/* Email option */}
-              <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${sendEmail ? 'border-violet-500/40 bg-violet-500/10' : 'border-zinc-700 bg-zinc-800/30 hover:border-zinc-600'}`}>
-                <input type="checkbox" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} className="hidden" />
-                <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-colors ${sendEmail ? 'bg-violet-500' : 'border border-zinc-600 bg-transparent'}`}>
-                  {sendEmail && <Check className="w-3 h-3 text-white" />}
-                </div>
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-zinc-700 bg-zinc-800/30 cursor-not-allowed">
+                <div className="w-4 h-4 rounded border border-zinc-600 bg-transparent flex-shrink-0" />
                 <div className="flex items-center gap-2">
                   <Send className="w-3.5 h-3.5 text-zinc-400" />
                   <span className="text-sm text-zinc-200">Email</span>
                 </div>
               </label>
-
-              {sendEmail && (
-                <input
-                  type="email"
-                  placeholder="recipient@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  autoFocus
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30"
-                  onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
-                />
-              )}
             </div>
 
             <button
-              onClick={handleSend}
-              disabled={(!sendNotion && !sendEmail) || (sendEmail && !email.trim()) || sendState === 'sending'}
-              className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed
-                ${sendState === 'sent' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                  sendState === 'error' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                  'bg-violet-600 hover:bg-violet-500 text-white'}`}
+              disabled
+              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium bg-violet-600 text-white opacity-30 cursor-not-allowed"
             >
-              {sendState === 'sending' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {sendState === 'sent' && <Check className="w-3.5 h-3.5" />}
-              {sendState === 'sending' ? 'Sending...' : sendState === 'sent' ? 'Sent!' : sendState === 'error' ? 'Failed — is n8n running?' : 'Send insights'}
+              Send insights
             </button>
           </div>
         )}
